@@ -1,0 +1,22 @@
+{
+  "name": "Example JS Game",
+  "platform": "js",
+  "gameEntries": [
+    {
+      "key": "examplejs:collect",
+      "name": "Collect",
+      "descriptionShort": "Race to be first to collect the target number of coins!",
+      "descriptionLong": "A fast-paced party game where players chase a coin around the arena. Each coin collected scores a point, and the first player to reach the target score wins the round.",
+      "minPlayers": 2,
+      "maxPlayers": 8,
+      "categories": ["dev"],
+      "guide": {
+        "objective": "Be first to the target coin count",
+        "warning": "Rivals race for the same coin",
+        "tip": "Cut straight to the next coin"
+      },
+      "botSupport": true,
+      "onlineSupport": false
+    }
+  ]
+}
