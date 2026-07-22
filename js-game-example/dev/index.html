@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>js-game — local dev harness</title>
+    <style>
+      /*
+        Minimal dark, full-window page. The game module (gc.game.js) creates and
+        appends its OWN <canvas> to document.body — see its setup() hook — so this
+        page only provides surrounding test chrome (which Gaming Couch draws for
+        you at runtime):
+          - a controls/help legend,
+          - a live scoreboard the HUD mock renders into (points, meter, eliminated),
+          - overhead nametags the HUD mock positions per player,
+          - off-screen indicators pinned to the edges when a player leaves the view,
+          - a result banner shown on gameOver.
+      */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+
+      body {
+        background-color: #0b0d12;
+        color: #e8eaed;
+        font-family: system-ui, sans-serif;
+        overflow: hidden;
+      }
+
+      /* Shared look for the fixed overlay panels. They sit above the game canvas
+         (which the game pins at z-index auto via position:fixed inset:0). */
+      .overlay {
+        position: fixed;
+        z-index: 10;
+        background: rgba(17, 20, 28, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-size: 13px;
+        line-height: 1.5;
+        backdrop-filter: blur(4px);
+        pointer-events: none; /* never steal clicks/keys from the game */
+      }
+
+      /* (a) dev top bar — set player/bot counts and restart. Real chrome, so unlike
+         the .overlay panels it DOES take pointer events. Gaming Couch draws its own
+         UI at runtime; this bar is harness-only. */
+      #topbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 8px 14px;
+        background: rgba(17, 20, 28, 0.92);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(4px);
+        font-size: 13px;
+      }
+      #topbar .brand {
+        font-weight: 600;
+      }
+      #topbar label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      #topbar input[type="number"] {
+        width: 48px;
+        padding: 3px 6px;
+        background: rgba(255, 255, 255, 0.06);
+        color: inherit;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 6px;
+        font: inherit;
+      }
+      #topbar input#cfg-seed {
+        width: 90px;
+      }
+      #topbar input:disabled {
+        opacity: 0.5;
+      }
+      #topbar button {
+        padding: 4px 12px;
+        background: rgba(255, 255, 255, 0.1);
+        color: inherit;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 6px;
+        font: inherit;
+        cursor: pointer;
+      }
+      #topbar button:hover {
+        background: rgba(255, 255, 255, 0.18);
+      }
+      #topbar .hint {
+        color: #9aa0aa;
+        margin-left: auto;
+      }
+      #topbar kbd {
+        display: inline-block;
+        min-width: 14px;
+        padding: 1px 5px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-bottom-width: 2px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.06);
+        font-family: ui-monospace, monospace;
+        font-size: 11px;
+        text-align: center;
+      }
+
+      /* (b) player HUD boxes — the HUD mock renders one box per player from
+         hud.updatePlayers(...). Left edge, vertically centered, stacked. */
+      #scoreboard {
+        position: fixed;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
+        pointer-events: none;
+      }
+      #scoreboard-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .player-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        min-width: 120px;
+        padding: 8px 14px;
+        background: rgba(17, 20, 28, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        /* Left edge is a thick accent the HUD mock colors per player (set inline). */
+        border-left-width: 6px;
+        border-radius: 10px;
+        backdrop-filter: blur(4px);
+      }
+      .player-box .name {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .player-box .score {
+        font-size: 22px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      /* meter bar rendered from hud.updatePlayers(...).meter (0..100) */
+      .player-box .meter {
+        width: 100%;
+        height: 6px;
+        margin-top: 4px;
+        background: rgba(255, 255, 255, 0.14);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .player-box .meter-fill {
+        height: 100%;
+        transition: width 0.15s linear;
+      }
+      /* segmented points rendered from a "pointsSmall" value (e.g. "3/5") */
+      .player-box .points {
+        display: flex;
+        gap: 2px;
+        width: 100%;
+        height: 8px;
+        margin-top: 4px;
+      }
+      .player-box .points .seg {
+        flex: 1;
+        border-radius: 1px;
+      }
+      /* eliminated players (hud.updatePlayers(...).eliminated) — dimmed + struck out */
+      .player-box.eliminated {
+        opacity: 0.45;
+        border-left-color: #ef4444 !important;
+      }
+      .player-box.eliminated .name {
+        text-decoration: line-through;
+        color: #ef4444 !important;
+      }
+
+      /* (c) result banner — shown on gameOver, centered */
+      #banner {
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        padding: 24px 36px;
+        font-size: 22px;
+        font-weight: 700;
+        display: none; /* shown by mock-platform.js gameOver() */
+      }
+      #banner.show {
+        display: block;
+      }
+      #banner .sub {
+        margin-top: 6px;
+        font-size: 13px;
+        font-weight: 400;
+        color: #9aa0aa;
+      }
+      #banner-restart {
+        margin-top: 16px;
+        padding: 6px 18px;
+        background: rgba(255, 255, 255, 0.12);
+        color: inherit;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        font: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        pointer-events: auto; /* .overlay sets pointer-events:none — re-enable here */
+      }
+      #banner-restart:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+      #banner .enter-hint {
+        margin-top: 8px;
+        font-size: 12px;
+        font-weight: 400;
+        color: #9aa0aa;
+      }
+
+      /* (d) overhead nametags — the HUD mock positions one per player from
+         hud.updateScreenPoints(...). Full-bleed layer beneath the panels. */
+      #screen-points {
+        position: fixed;
+        inset: 0;
+        z-index: 5;
+        pointer-events: none;
+      }
+      /* overhead HUD above each player's head — a centered stack of name + points +
+         meter, positioned so its bottom sits at the anchor point (which the game puts
+         just above the head). Mirrors the platform's overhead (nametag + value + meter). */
+      #screen-points .overhead {
+        position: absolute;
+        transform: translate(-50%, -100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        white-space: nowrap;
+      }
+      #screen-points .overhead .oh-name {
+        font-size: 14px;
+        font-weight: 700;
+        color: #fff;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+      }
+      #screen-points .overhead .oh-value {
+        font-size: 12px;
+        font-weight: 700;
+        color: #fff;
+        font-variant-numeric: tabular-nums;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+      }
+      /* segmented points above the head (pointsSmall value). Mimics the platform's
+         overhead points: a translucent white backing shows through the 2px gaps as a
+         light frame between segments. */
+      #screen-points .overhead .points {
+        display: flex;
+        gap: 2px;
+        width: 72px;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 2px;
+      }
+      #screen-points .overhead .points .seg {
+        flex: 1;
+        border-radius: 1px;
+      }
+      #screen-points .overhead .oh-meter {
+        width: 72px;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.55);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      #screen-points .overhead .oh-meter-fill {
+        height: 100%;
+        transition: width 0.15s linear;
+      }
+      /* off-screen indicators — the HUD mock pins one to the nearest edge for each
+         playerPosition point whose isOffScreen is true (see renderScreenPoints). */
+      #screen-points .offscreen {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border: 3px solid #888;
+        border-radius: 50%;
+        background: rgba(11, 13, 18, 0.9);
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      /* Instructions shown ONLY when the page is opened via file:// — see the
+         inline script in <head>. Under file:// the browser blocks ES module
+         imports, so the harness can't run and the page would otherwise be blank. */
+      #file-warning {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 100;
+        max-width: 480px;
+        padding: 24px 28px;
+        background: #14181f;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        line-height: 1.55;
+      }
+      html[data-file] #file-warning {
+        display: block;
+      }
+      #file-warning h1 {
+        margin: 0 0 10px;
+        font-size: 18px;
+      }
+      #file-warning code {
+        font-family: ui-monospace, monospace;
+      }
+      #file-warning pre {
+        margin: 10px 0;
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+        overflow-x: auto;
+      }
+      #file-warning a {
+        color: #8ab4ff;
+      }
+    </style>
+    <script>
+      // Opened via file://? The browser blocks the ES module imports this
+      // harness needs, so the game can't run. Reveal the #file-warning
+      // instructions below. This is a classic (non-module) script, so it still
+      // runs even though the module script fails to load under file://.
+      if (location.protocol === "file:") {
+        document.documentElement.setAttribute("data-file", "");
+      }
+    </script>
+  </head>
+  <body>
+    <!-- Shown only when opened via file:// (module imports are blocked then) -->
+    <div id="file-warning">
+      <h1>⚠️ Serve this over HTTP</h1>
+      <p>
+        You opened this page directly with <code>file://</code>, so the browser
+        blocks the ES module imports this harness needs.
+      </p>
+      <p>Start a static server from the repository root, then open it over http:</p>
+      <pre>
+npx serve
+# then open the printed URL ending in
+# /js-game-example/dev/index.html</pre
+      >
+      <p>
+        See the
+        <a href="../README.md#local-development"
+          >js-game-example README →
+          <strong>“Local development”</strong></a
+        >
+        for the full guide.
+      </p>
+    </div>
+
+    <!-- (d) overhead nametags positioned by the HUD mock (screen points) -->
+    <div id="screen-points"></div>
+
+    <!-- (a) dev top bar — set player/bot counts (persisted to localStorage) and
+         restart; shows which player the arrow keys drive. Wired up by mock-platform.js. -->
+    <div id="topbar">
+      <span class="brand">js-game dev harness</span>
+      <label>Players <input id="cfg-players" type="number" min="1" max="8" /></label>
+      <label>Bots <input id="cfg-bots" type="number" min="0" /></label>
+      <label><input id="cfg-seed-random" type="checkbox" /> Random seed</label>
+      <label>Seed <input id="cfg-seed" type="number" min="0" /></label>
+      <button id="cfg-restart">Restart</button>
+      <span class="hint">
+        Arrows → <strong id="cfg-selected">P1</strong> · WASD → P2 ·
+        <kbd>1</kbd>–<kbd>8</kbd> switch · <kbd>P</kbd> pause
+      </span>
+    </div>
+
+    <!-- (b) player HUD boxes rendered by the HUD mock (left, centered) -->
+    <div id="scoreboard">
+      <div id="scoreboard-list"></div>
+    </div>
+
+    <!-- (c) result banner — gameOver result + restart (button or Enter key) -->
+    <div id="banner" class="overlay">
+      <div id="banner-title">Game over</div>
+      <div id="banner-sub" class="sub"></div>
+      <button id="banner-restart">Restart</button>
+      <div class="enter-hint">(press enter)</div>
+    </div>
+
+    <!--
+      Load the local test harness as an ES module. It drives the game module's
+      lifecycle hooks so you can run the example locally; at runtime Gaming Couch
+      drives them for you. Must be served over http(s) (file:// blocks module
+      imports) — e.g. `npx serve` from the repository root, then open
+      js-game-example/dev/index.html.
+    -->
+    <script type="module" src="./mock-platform.js"></script>
+  </body>
+</html>
