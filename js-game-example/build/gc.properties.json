@@ -1,0 +1,135 @@
+{
+  "version": "1.0.0",
+  "properties": {
+    "player": {
+      "color": {
+        "white": {
+          "rgb": {
+            "base": [255, 255, 255],
+            "light": [255, 255, 255],
+            "dark": [255, 255, 255],
+            "offWhite": [255, 255, 255]
+          },
+          "hex": {
+            "base": "#ffffff",
+            "light": "#ffffff",
+            "dark": "#ffffff",
+            "offWhite": "#ffffff"
+          }
+        },
+        "blue": {
+          "rgb": {
+            "base": [7, 78, 234],
+            "light": [185, 229, 252],
+            "dark": [23, 37, 84],
+            "offWhite": [235, 253, 255]
+          },
+          "hex": {
+            "base": "#074eea",
+            "light": "#b9e5fc",
+            "dark": "#172554",
+            "offWhite": "#ebfdff"
+          }
+        },
+        "red": {
+          "rgb": {
+            "base": [243, 63, 94],
+            "light": [253, 204, 210],
+            "dark": [76, 5, 25],
+            "offWhite": [253, 241, 241]
+          },
+          "hex": {
+            "base": "#f33f5e",
+            "light": "#fdccd2",
+            "dark": "#4c0519",
+            "offWhite": "#fdf1f1"
+          }
+        },
+        "green": {
+          "rgb": {
+            "base": [75, 130, 22],
+            "light": [216, 248, 156],
+            "dark": [22, 101, 52],
+            "offWhite": [246, 253, 230]
+          },
+          "hex": {
+            "base": "#4b8216",
+            "light": "#d8f89c",
+            "dark": "#166534",
+            "offWhite": "#f6fde6"
+          }
+        },
+        "cyan": {
+          "rgb": {
+            "base": [45, 211, 190],
+            "light": [219, 251, 230],
+            "dark": [3, 105, 160],
+            "offWhite": [239, 252, 249]
+          },
+          "hex": {
+            "base": "#2dd3be",
+            "light": "#dbfbe6",
+            "dark": "#0369a0",
+            "offWhite": "#effcf9"
+          }
+        },
+        "yellow": {
+          "rgb": {
+            "base": [250, 190, 36],
+            "light": [253, 239, 137],
+            "dark": [179, 83, 9],
+            "offWhite": [253, 251, 231]
+          },
+          "hex": {
+            "base": "#fabe24",
+            "light": "#fdef89",
+            "dark": "#b35309",
+            "offWhite": "#fdfbe7"
+          }
+        },
+        "purple": {
+          "rgb": {
+            "base": [138, 92, 245],
+            "light": [215, 179, 253],
+            "dark": [88, 28, 134],
+            "offWhite": [242, 231, 255]
+          },
+          "hex": {
+            "base": "#8a5cf5",
+            "light": "#d7b3fd",
+            "dark": "#581c86",
+            "offWhite": "#f2e7ff"
+          }
+        },
+        "pink": {
+          "rgb": {
+            "base": [251, 164, 164],
+            "light": [255, 240, 241],
+            "dark": [218, 39, 119],
+            "offWhite": [253, 251, 231]
+          },
+          "hex": {
+            "base": "#fba4a4",
+            "light": "#fff0f1",
+            "dark": "#da2777",
+            "offWhite": "#fdfbe7"
+          }
+        },
+        "brown": {
+          "rgb": {
+            "base": [158, 72, 35],
+            "light": [201, 137, 4],
+            "dark": [67, 20, 7],
+            "offWhite": [252, 229, 137]
+          },
+          "hex": {
+            "base": "#9e4823",
+            "light": "#c98904",
+            "dark": "#431407",
+            "offWhite": "#fce589"
+          }
+        }
+      }
+    }
+  }
+}
